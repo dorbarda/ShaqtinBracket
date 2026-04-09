@@ -26,8 +26,9 @@ export async function middleware(request: NextRequest) {
 
   const protectedPaths = ['/admin', '/picks', '/pre-picks', '/my-picks', '/bracket', '/leaderboard']
   const isProtected = protectedPaths.some(p => request.nextUrl.pathname.startsWith(p))
+  const isAuthCallback = request.nextUrl.pathname.startsWith('/auth/callback')
 
-  if (!user && isProtected) {
+  if (!user && isProtected && !isAuthCallback) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
