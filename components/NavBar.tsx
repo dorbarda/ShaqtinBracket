@@ -6,46 +6,40 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Trophy, BarChart3, Star, List, Settings } from "lucide-react"
 import { useEffect, useState } from "react"
-import type { UserProfile } from "@/types/database.types"
 
 export function NavBar() {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
-  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [displayName, setDisplayName] = useState<string | null>(null)
 
   useEffect(() => {
-    // Load profile for current session
-    const loadProfile = async (userId: string) => {
-      const { data } = await supabase.from('user_profiles').select('*').eq('id', userId).single()
-      setProfile(data)
-    }
-
-    // Check existing session immediately
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) loadProfile(session.user.id)
-    })
-
-    // Also listen for auth state changes (magic link sign-in, sign-out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        loadProfile(session.user.id)
-      } else {
-        setProfile(null)
+        const name = session.user.user_metadata?.display_name
+          ?? session.user.email?.split('@')[0]
+          ?? null
+        setDisplayName(name)
       }
     })
-
-    return () => subscription.unsubscribe()
   }, [])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    setProfile(null)
+    setDisplayName(null)
     router.push('/login')
     router.refresh()
   }
 
   const isActive = (path: string) => pathname?.startsWith(path)
+
+  const navLinks = [
+    { href: '/bracket', label: 'Bracket', icon: Trophy },
+    { href: '/picks', label: 'Picks', icon: Star },
+    { href: '/leaderboard', label: 'Leaderboard', icon: BarChart3 },
+    { href: '/my-picks', label: 'My Picks', icon: List },
+    { href: '/admin/season', label: 'Admin', icon: Settings },
+  ]
 
   return (
     <nav className="border-b bg-card">
@@ -56,47 +50,25 @@ export function NavBar() {
             <span>ShaqtinBracket</span>
           </Link>
 
-          {profile && (
-            <div className="flex items-center gap-1">
-              <Link href="/bracket">
-                <Button variant={isActive('/bracket') ? 'default' : 'ghost'} size="sm" className="gap-1.5">
-                  <Trophy className="h-4 w-4" />
-                  <span className="hidden sm:inline">Bracket</span>
+          <div className="flex items-center gap-1">
+            {navLinks.map(({ href, label, icon: Icon }) => (
+              <Link key={href} href={href}>
+                <Button
+                  variant={isActive(href) && !(href === '/bracket' && isActive('/admin')) ? 'default' : 'ghost'}
+                  size="sm"
+                  className="gap-1.5"
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="hidden sm:inline">{label}</span>
                 </Button>
               </Link>
-              <Link href="/picks">
-                <Button variant={isActive('/picks') && !isActive('/pre-picks') ? 'default' : 'ghost'} size="sm" className="gap-1.5">
-                  <Star className="h-4 w-4" />
-                  <span className="hidden sm:inline">Picks</span>
-                </Button>
-              </Link>
-              <Link href="/leaderboard">
-                <Button variant={isActive('/leaderboard') ? 'default' : 'ghost'} size="sm" className="gap-1.5">
-                  <BarChart3 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Leaderboard</span>
-                </Button>
-              </Link>
-              <Link href="/my-picks">
-                <Button variant={isActive('/my-picks') ? 'default' : 'ghost'} size="sm" className="gap-1.5">
-                  <List className="h-4 w-4" />
-                  <span className="hidden sm:inline">My Picks</span>
-                </Button>
-              </Link>
-              {profile.role === 'admin' && (
-                <Link href="/admin/season">
-                  <Button variant={isActive('/admin') ? 'default' : 'ghost'} size="sm" className="gap-1.5">
-                    <Settings className="h-4 w-4" />
-                    <span className="hidden sm:inline">Admin</span>
-                  </Button>
-                </Link>
-              )}
-            </div>
-          )}
+            ))}
+          </div>
 
           <div className="flex items-center gap-2">
-            {profile ? (
+            {displayName ? (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground hidden sm:inline">{profile.display_name}</span>
+                <span className="text-sm text-muted-foreground hidden sm:inline">{displayName}</span>
                 <Button variant="outline" size="sm" onClick={handleLogout}>Sign out</Button>
               </div>
             ) : (
