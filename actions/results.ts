@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { calculatePickResult, calculatePreBetResult } from '@/lib/scoring'
 import { revalidatePath } from 'next/cache'
 
@@ -10,7 +10,7 @@ export async function saveMatchupResult(
   scoreTeam1: number,
   scoreTeam2: number
 ) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // 1. Write the result, mark completed
   const { data: matchup, error } = await supabase

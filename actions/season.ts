@@ -1,11 +1,11 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import type { SeasonStatus } from '@/types/database.types'
 
 export async function createSeason(formData: FormData) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('seasons').insert({
     year: Number(formData.get('year')),
     name: String(formData.get('name')),
@@ -28,7 +28,7 @@ export async function createSeason(formData: FormData) {
 }
 
 export async function updateSeason(seasonId: string, formData: FormData) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('seasons').update({
     year: Number(formData.get('year')),
     name: String(formData.get('name')),
@@ -48,7 +48,7 @@ export async function updateSeason(seasonId: string, formData: FormData) {
 }
 
 export async function togglePreBetsOpen(seasonId: string, open: boolean) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('seasons').update({ pre_bets_open: open }).eq('id', seasonId)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/season')
@@ -56,7 +56,7 @@ export async function togglePreBetsOpen(seasonId: string, open: boolean) {
 }
 
 export async function toggleBettingOpen(seasonId: string, open: boolean) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('seasons').update({ betting_open: open }).eq('id', seasonId)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/season')
@@ -64,7 +64,7 @@ export async function toggleBettingOpen(seasonId: string, open: boolean) {
 }
 
 export async function advanceSeasonStatus(seasonId: string, status: SeasonStatus) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('seasons').update({ status }).eq('id', seasonId)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/season')

@@ -1,10 +1,10 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 export async function upsertTeam(teamId: string | null, formData: FormData) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const data = {
     season_id: String(formData.get('season_id')),
     name: String(formData.get('name')),
@@ -27,7 +27,7 @@ export async function upsertTeam(teamId: string | null, formData: FormData) {
 }
 
 export async function deleteTeam(teamId: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('teams').delete().eq('id', teamId)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/teams')

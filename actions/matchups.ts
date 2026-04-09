@@ -1,11 +1,11 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import type { Conference, MatchupStatus } from '@/types/database.types'
 
 export async function createMatchup(formData: FormData) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('matchups').insert({
     season_id: String(formData.get('season_id')),
     round: Number(formData.get('round')),
@@ -23,7 +23,7 @@ export async function createMatchup(formData: FormData) {
 }
 
 export async function updateMatchupStatus(matchupId: string, status: MatchupStatus) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('matchups').update({ status }).eq('id', matchupId)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/betting')
@@ -32,7 +32,7 @@ export async function updateMatchupStatus(matchupId: string, status: MatchupStat
 }
 
 export async function deleteMatchup(matchupId: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('matchups').delete().eq('id', matchupId)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/bracket')
