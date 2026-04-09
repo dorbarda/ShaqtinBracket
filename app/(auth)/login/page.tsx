@@ -1,35 +1,65 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Trophy } from "lucide-react"
+import { Trophy, Mail } from "lucide-react"
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
+  const [displayName, setDisplayName] = useState("")
   const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState("")
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        data: { display_name: displayName || email.split("@")[0] },
+        emailRedirectTo: `${window.location.origin}/bracket`,
+      },
+    })
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/bracket')
-      router.refresh()
+      setSent(true)
     }
+  }
+
+  if (sent) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <div className="flex justify-center mb-2">
+              <Mail className="h-12 w-12 text-primary" />
+            </div>
+            <CardTitle>Check your email</CardTitle>
+            <CardDescription>
+              We sent a sign-in link to <span className="font-medium text-foreground">{email}</span>.
+              Click it to enter ShaqtinBracket.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">Didn&apos;t get it? Check your spam folder.</p>
+          </CardContent>
+          <CardFooter className="justify-center">
+            <Button variant="ghost" size="sm" onClick={() => setSent(false)}>
+              Try a different email
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -40,13 +70,23 @@ export default function LoginPage() {
             <Trophy className="h-10 w-10 text-primary" />
           </div>
           <CardTitle className="text-2xl">ShaqtinBracket 2026</CardTitle>
-          <CardDescription>Sign in to make your picks</CardDescription>
+          <CardDescription>Enter your email to get a sign-in link — no password needed.</CardDescription>
         </CardHeader>
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
               <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</div>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Your name <span className="text-muted-foreground text-xs">(first time only)</span></Label>
+              <Input
+                id="displayName"
+                type="text"
+                placeholder="Shaq"
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -58,25 +98,11 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-              />
-            </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-3">
+          <CardFooter>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? "Sending link..." : "Send sign-in link"}
             </Button>
-            <p className="text-sm text-muted-foreground text-center">
-              Don&apos;t have an account?{" "}
-              <Link href="/register" className="text-primary hover:underline">Register</Link>
-            </p>
           </CardFooter>
         </form>
       </Card>
