@@ -15,12 +15,27 @@ export function NavBar() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        supabase.from('user_profiles').select('*').eq('id', user.id).single()
-          .then(({ data }) => setProfile(data))
+    // Load profile for current session
+    const loadProfile = async (userId: string) => {
+      const { data } = await supabase.from('user_profiles').select('*').eq('id', userId).single()
+      setProfile(data)
+    }
+
+    // Check existing session immediately
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) loadProfile(session.user.id)
+    })
+
+    // Also listen for auth state changes (magic link sign-in, sign-out, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        loadProfile(session.user.id)
+      } else {
+        setProfile(null)
       }
     })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   const handleLogout = async () => {
