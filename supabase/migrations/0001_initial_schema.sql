@@ -1,26 +1,35 @@
 -- ================================================================
 -- 0001_initial_schema.sql
 -- ShaqtinBracket2026 — full schema + RLS
--- Run this in the Supabase SQL editor
+-- Safe to re-run (idempotent)
 -- ================================================================
 
 -- ================================================================
 -- ENUMS
 -- ================================================================
-CREATE TYPE season_status AS ENUM (
-  'pre_playoffs', 'round1', 'semifinals', 'conference_finals', 'finals', 'completed'
-);
+DO $$ BEGIN
+  CREATE TYPE season_status AS ENUM (
+    'pre_playoffs', 'round1', 'semifinals', 'conference_finals', 'finals', 'completed'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE matchup_status AS ENUM (
-  'upcoming', 'betting_open', 'locked', 'completed'
-);
+DO $$ BEGIN
+  CREATE TYPE matchup_status AS ENUM (
+    'upcoming', 'betting_open', 'locked', 'completed'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE user_role AS ENUM ('admin', 'user');
+DO $$ BEGIN
+  CREATE TYPE user_role AS ENUM ('admin', 'user');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ================================================================
 -- user_profiles
 -- ================================================================
-CREATE TABLE user_profiles (
+CREATE TABLE IF NOT EXISTS user_profiles (
   id           UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name TEXT NOT NULL,
   role         user_role NOT NULL DEFAULT 'user',
@@ -28,6 +37,11 @@ CREATE TABLE user_profiles (
 );
 
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view all profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Admins full access on profiles" ON user_profiles;
 
 CREATE POLICY "Users can view all profiles"
   ON user_profiles FOR SELECT USING (true);
@@ -47,7 +61,7 @@ CREATE POLICY "Admins full access on profiles"
 -- ================================================================
 -- seasons
 -- ================================================================
-CREATE TABLE seasons (
+CREATE TABLE IF NOT EXISTS seasons (
   id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   year                      INT NOT NULL,
   name                      TEXT NOT NULL,
@@ -69,6 +83,9 @@ CREATE TABLE seasons (
 
 ALTER TABLE seasons ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read seasons" ON seasons;
+DROP POLICY IF EXISTS "Admins can write seasons" ON seasons;
+
 CREATE POLICY "Anyone can read seasons"
   ON seasons FOR SELECT USING (true);
 
@@ -81,7 +98,7 @@ CREATE POLICY "Admins can write seasons"
 -- ================================================================
 -- teams
 -- ================================================================
-CREATE TABLE teams (
+CREATE TABLE IF NOT EXISTS teams (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   season_id    UUID NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
   name         TEXT NOT NULL,
@@ -96,6 +113,9 @@ CREATE TABLE teams (
 
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read teams" ON teams;
+DROP POLICY IF EXISTS "Admins can write teams" ON teams;
+
 CREATE POLICY "Anyone can read teams"
   ON teams FOR SELECT USING (true);
 
@@ -108,7 +128,7 @@ CREATE POLICY "Admins can write teams"
 -- ================================================================
 -- matchups
 -- ================================================================
-CREATE TABLE matchups (
+CREATE TABLE IF NOT EXISTS matchups (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   season_id           UUID NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
   round               INT NOT NULL CHECK (round BETWEEN 1 AND 4),
@@ -127,6 +147,9 @@ CREATE TABLE matchups (
 
 ALTER TABLE matchups ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read matchups" ON matchups;
+DROP POLICY IF EXISTS "Admins can write matchups" ON matchups;
+
 CREATE POLICY "Anyone can read matchups"
   ON matchups FOR SELECT USING (true);
 
@@ -139,7 +162,7 @@ CREATE POLICY "Admins can write matchups"
 -- ================================================================
 -- picks
 -- ================================================================
-CREATE TABLE picks (
+CREATE TABLE IF NOT EXISTS picks (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id              UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   matchup_id           UUID NOT NULL REFERENCES matchups(id) ON DELETE CASCADE,
@@ -157,6 +180,12 @@ CREATE TABLE picks (
 );
 
 ALTER TABLE picks ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read their own picks" ON picks;
+DROP POLICY IF EXISTS "Admins can read all picks" ON picks;
+DROP POLICY IF EXISTS "Users can insert own picks when betting open" ON picks;
+DROP POLICY IF EXISTS "Users can update own picks when betting open" ON picks;
+DROP POLICY IF EXISTS "Admins full access on picks" ON picks;
 
 CREATE POLICY "Users can read their own picks"
   ON picks FOR SELECT USING (auth.uid() = user_id);
@@ -190,7 +219,7 @@ CREATE POLICY "Admins full access on picks"
 -- ================================================================
 -- pre_bets
 -- ================================================================
-CREATE TABLE pre_bets (
+CREATE TABLE IF NOT EXISTS pre_bets (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id             UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   season_id           UUID NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
@@ -210,6 +239,12 @@ CREATE TABLE pre_bets (
 );
 
 ALTER TABLE pre_bets ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read their own pre_bets" ON pre_bets;
+DROP POLICY IF EXISTS "Admins can read all pre_bets" ON pre_bets;
+DROP POLICY IF EXISTS "Users can insert own pre_bets when open" ON pre_bets;
+DROP POLICY IF EXISTS "Users can update own pre_bets when open" ON pre_bets;
+DROP POLICY IF EXISTS "Admins full access on pre_bets" ON pre_bets;
 
 CREATE POLICY "Users can read their own pre_bets"
   ON pre_bets FOR SELECT USING (auth.uid() = user_id);
@@ -239,12 +274,12 @@ CREATE POLICY "Admins full access on pre_bets"
 -- ================================================================
 -- INDEXES
 -- ================================================================
-CREATE INDEX idx_teams_season ON teams(season_id);
-CREATE INDEX idx_matchups_season_round ON matchups(season_id, round);
-CREATE INDEX idx_picks_user ON picks(user_id);
-CREATE INDEX idx_picks_matchup ON picks(matchup_id);
-CREATE INDEX idx_picks_season ON picks(season_id);
-CREATE INDEX idx_pre_bets_user_season ON pre_bets(user_id, season_id);
+CREATE INDEX IF NOT EXISTS idx_teams_season ON teams(season_id);
+CREATE INDEX IF NOT EXISTS idx_matchups_season_round ON matchups(season_id, round);
+CREATE INDEX IF NOT EXISTS idx_picks_user ON picks(user_id);
+CREATE INDEX IF NOT EXISTS idx_picks_matchup ON picks(matchup_id);
+CREATE INDEX IF NOT EXISTS idx_picks_season ON picks(season_id);
+CREATE INDEX IF NOT EXISTS idx_pre_bets_user_season ON pre_bets(user_id, season_id);
 
 -- ================================================================
 -- updated_at triggers
@@ -257,9 +292,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS picks_updated_at ON picks;
 CREATE TRIGGER picks_updated_at
   BEFORE UPDATE ON picks FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS pre_bets_updated_at ON pre_bets;
 CREATE TRIGGER pre_bets_updated_at
   BEFORE UPDATE ON pre_bets FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
@@ -279,6 +316,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
