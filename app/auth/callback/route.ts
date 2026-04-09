@@ -1,38 +1,8 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// This route handled PKCE magic links (now replaced by implicit flow).
+// Kept to gracefully redirect any stale links.
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/bracket'
-
-  if (code) {
-    // Create the redirect response first so we can set cookies on it
-    const response = NextResponse.redirect(`${origin}${next}`)
-
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            // Set cookies on the redirect response so the browser gets them
-            cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options)
-            )
-          },
-        },
-      }
-    )
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      return response
-    }
-  }
-
-  return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
+  const { origin } = new URL(request.url)
+  return NextResponse.redirect(`${origin}/bracket`)
 }

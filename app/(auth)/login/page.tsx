@@ -24,7 +24,7 @@ export default function LoginPage() {
       email,
       options: {
         data: { display_name: displayName || email.split("@")[0] },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/bracket`,
       },
     })
     if (error) {
